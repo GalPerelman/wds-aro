@@ -1,0 +1,6 @@
+﻿idx,name,min_flow,max_flow,init_flow,in,out
+1,vsp1,0,270,253,1,0
+2,vsp2,0,250,72,2,0
+3,vsp3,0,460,179,3,0
+4,vsp4,66,66,,4,0
+5,vsp5,0,9999,,9,0
