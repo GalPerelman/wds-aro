@@ -12,6 +12,9 @@ classdef Network
         obj.data_folder = data_folder;
         obj.fsp = obj.read_data_from_file(fullfile(data_folder, 'fsp.csv'));
         obj.fsp.facility = string(obj.fsp.facility);
+
+        obj.vsp = obj.read_data_from_file(fullfile(data_folder, 'vsp.csv'));
+        obj.vsp.facility = string(obj.vsp.name);
         
         obj.tanks = obj.read_data_from_file(fullfile(data_folder, 'tanks.csv'));
         obj.tanks.demand = string(obj.tanks.demand);

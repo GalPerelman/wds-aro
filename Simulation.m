@@ -58,9 +58,15 @@ classdef Simulation
         end
 
         function total_max_inflow = get_tank_max_inflow(obj, tank_idx)
-                tank_inflows = obj.net.fsp(obj.net.fsp.in == tank_idx, :);
-                max_inflows = groupsummary(tank_inflows(:, ["facility", "flow"]), "facility", "max");
-                total_max_inflow = sum(table2array(max_inflows(:, 'max_flow')));
+                fsp_inflows = obj.net.fsp(obj.net.fsp.in == tank_idx, :);
+                max_fsp_inflows = groupsummary(fsp_inflows(:, ["facility", "flow"]), "facility", "max");
+                total_max_fsp_inflow = sum(table2array(max_fsp_inflows(:, 'max_flow')));
+
+                vsp_inflows = obj.net.vsp(obj.net.vsp.in == tank_idx, :);
+                max_vsp_inflows = groupsummary(vsp_inflows(:, ["name", "max_flow"]), "name", "max");
+                total_max_vsp_inflow = sum(table2array(max_vsp_inflows(:, 'max_max_flow')));
+                
+                total_max_inflow = total_max_fsp_inflow + total_max_vsp_inflow;
         end
         
         function demand = get_tank_demand(obj, tank_idx)
@@ -77,7 +83,7 @@ classdef Simulation
                 else
                     q_max = obj.get_tank_max_inflow(tank_idx);
                     demand = obj.get_tank_demand(tank_idx);
-                    dynamic_min = [final_vol];
+                    dynamic_min = final_vol;
                     for t=1:1:obj.T
                         v = max(static_min_vol, dynamic_min(1) + demand(t) - q_max);
                         dynamic_min = [v; dynamic_min];
@@ -86,19 +92,32 @@ classdef Simulation
                 end  
         end
 
-        function vol = get_tank_vol(obj, x, tank_idx)
+        function vol = get_tank_vol(obj, x_fsp, x_vsp, tank_idx)
                 lhs = obj.net.tanks{tank_idx, "init_vol"};
                 for i = 1:1:height(obj.net.fsp.facility)
                     if obj.net.fsp{i, "in"} == tank_idx
                         mat = obj.net.get_cumulative_mat(obj.T, 1);
-                        lhs = lhs + obj.net.fsp{i, "flow"} * mat * x(i, :)';
-                    elseif sim.net.fsp{i, "out"} == tank_idx
+                        lhs = lhs + obj.net.fsp{i, "flow"} * mat * x_fsp(i, :)';
+                    elseif obj.net.fsp{i, "out"} == tank_idx
                         mat = obj.net.get_cumulative_mat(obj.T, -1);
-                        lhs = lhs + obj.net.fsp{i, "flow"} * mat * x(i, :)';
+                        lhs = lhs + obj.net.fsp{i, "flow"} * mat * x_fsp(i, :)';
                     else
                         continue
                     end
                 end
+
+                for i = 1:1:height(obj.net.vsp)
+                    if obj.net.vsp{i, "in"} == tank_idx
+                        mat = obj.net.get_cumulative_mat(obj.T, 1);
+                        lhs = lhs + mat * x_vsp(i, :)';
+                    elseif obj.net.vsp{i, "out"} == tank_idx
+                        mat = obj.net.get_cumulative_mat(obj.T, -1);
+                        lhs = lhs + mat * x_vsp(i, :)';
+                    else
+                        continue
+                    end
+                end
+
                 tank_consumer = obj.net.tanks{tank_idx, "demand"};
                 cum_demand = table2array(cumsum(obj.data(:, tank_consumer)));
                 vol = lhs - cum_demand;
