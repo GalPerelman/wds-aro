@@ -72,6 +72,18 @@ function [obj_val, x_fsp_val, x_vsp_val, model] = lp(sim)
         model.append(lhs - cum_demand <= sim.net.tanks{tank_idx, "max_vol"});
 
     end
+
+    % vsp total volume constraints
+    for i = 1:1:height(sim.net.vsp)
+        min_vol = sim.net.vsp{i, "min_vol"};
+        max_vol = sim.net.vsp{i, "max_vol"};
+
+        model.append(sum(eye(sim.T) * x_vsp(i, :)') >= min_vol);
+        model.append(sum(eye(sim.T) * x_vsp(i, :)') <= max_vol);
+    end
+
+    % vsp change in flow
+    % to do...
     
     % Solve
     model.solve;
