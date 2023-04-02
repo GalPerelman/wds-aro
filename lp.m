@@ -1,14 +1,17 @@
 function [obj_val, x_fsp_val, x_vsp_val, model] = lp(sim)
     model = rsome();
     model.Param.solver = 'gurobi';
+    model.Param.display = 0;
     
     n_combs = height(sim.net.fsp);
     n_vsp = height(sim.net.vsp);
-
+    
+    % declare decision variables for fixed speed pumps
     x_fsp = model.decision(height(sim.net.fsp), sim.T);
     model.append(0 <= x_fsp);
     model.append(x_fsp <= 1);
     
+    % declare decision variables for varialbe speed pumps
     x_vsp = model.decision(height(sim.net.vsp), sim.T);
     for i = 1:1:n_vsp
         max_flow = sim.net.vsp{i, "max_flow"};
@@ -28,7 +31,7 @@ function [obj_val, x_fsp_val, x_vsp_val, model] = lp(sim)
         mat = zeros(1, n_combs);
         facility_idx = sim.net.fsp{sim.net.fsp.facility == facilities(i), "comb"};
         mat(facility_idx') = 1;
-        % model.append((mat * x_fsp)' <= ones(24, 1));
+        model.append((mat * x_fsp)' <= ones(24, 1));
     end
 
     % Mass-balance constraints
@@ -73,6 +76,15 @@ function [obj_val, x_fsp_val, x_vsp_val, model] = lp(sim)
 
     end
 
+    % vsp initial flow
+    for i = 1:1:height(sim.net.vsp)
+        if isnan(sim.net.vsp{i, "init_flow"})
+            continue
+        else
+            model.append(x_vsp(i, 1) == sim.net.vsp{i, "init_flow"});
+        end
+    end
+    
     % vsp total volume constraints
     for i = 1:1:height(sim.net.vsp)
         min_vol = sim.net.vsp{i, "min_vol"};
@@ -83,7 +95,19 @@ function [obj_val, x_fsp_val, x_vsp_val, model] = lp(sim)
     end
 
     % vsp change in flow
-    % to do...
+    const_tariffs = utils.get_constant_tariff_periods(sim.data.tariff);
+    for i = 1:1:height(sim.net.vsp)
+        if sim.net.vsp{i, "const_flow"} == 1
+            for j = 1:1:max(const_tariffs)
+                idx = find(const_tariffs == j);
+                idx = idx(1:end-1);
+                mat = utils.get_mat_for_value_canges(sim.T, idx);
+                model.append(mat * x_vsp(i, :)' == 0);
+            end
+        else
+            continue
+        end
+    end
     
     % Solve
     model.solve;
@@ -92,7 +116,7 @@ function [obj_val, x_fsp_val, x_vsp_val, model] = lp(sim)
         x_fsp_val = x_fsp.get;
         x_vsp_val = x_vsp.get;
     else
-        fprintf('NOT FEASIBLE')
+        fprintf('NOT FEASIBLE\n')
         obj_val = 999999;
         x_fsp_val = [];
         x_vsp_val = [];
