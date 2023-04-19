@@ -1,2 +1,2 @@
-tank,zone,min_vol,max_vol,init_vol,final_vol,demand
-1,1,500,2800,1500,1500,D1
+tank,zone,min_vol,max_vol,init_vol,final_vol,demand,uncertain
+1,1,500,2800,1500,1500,D1,1
