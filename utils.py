@@ -22,3 +22,18 @@ def get_constant_tariff_periods(tariff):
     const_idx[diff != 0.0] = 1
     const_idx = const_idx.cumsum()
     return const_idx
+
+
+def get_mat_for_tariff(sim, tariff_name):
+    """
+    generates an eye matrix with ones only in the rows of requested tariff
+    by multiplying the variables vector we will get the entries that corresponds to the tariff periods
+    [[0, 0, 0..   OFF
+     [0, 1, 0..   ON
+     [0, 0, 0..]] OFF
+    """
+    mat = np.eye(sim.T)
+    tariffs = sim.data['name'].values
+    mask = np.where(tariffs == tariff_name, 1, 0)
+    mat = np.multiply(mat, mask[:, np.newaxis])
+    return mat

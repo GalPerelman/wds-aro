@@ -1,3 +1,5 @@
+import os
+import pandas as pd
 import numpy as np
 from rsome import ro
 import rsome as rso
@@ -25,6 +27,7 @@ class RO:
         self.vsp_initial_flow()
         self.vsp_total_vol()
         self.vsp_flow_change()
+        self.max_power()
 
     def declare_rand_variables(self):
         z = self.model.rvar((len(self.sim.net.tanks), self.sim.T))
@@ -107,6 +110,19 @@ class RO:
             else:
                 continue
 
+    def max_power(self):
+        """
+        This function is currently customized for Sopron network only
+        The problem conditions are such that the only power constraint is
+        Power Station D (Pump Stations 5 and 6) must be under 35 kW during the On-Peak periods
+        The meaning is that Pump station 5 cannot be operated with 116 CMH (37.5 kW) during the ON-Peak periods
+        """
+        max_power_constr = pd.read_csv(os.path.join(self.sim.data_folder, 'max_power.csv'))
+        for i, row in max_power_constr.iterrows():
+            fsp_idx = self.sim.net.fsp.loc[self.sim.net.fsp['comb'] == row['comb']].index.values[0]
+            mat = utils.get_mat_for_tariff(self.sim, tariff_name=row['tariff'])
+            self.model.st(mat @ self.x_fsp[fsp_idx, :] == 0)
+
     def solve(self):
         self.model.solve(solver=grb, display=False)
         obj, status = self.model.solution.objval, self.model.solution.status
@@ -134,6 +150,7 @@ class ARO:
         self.vsp_initial_flow()
         self.vsp_total_vol()
         self.vsp_flow_change()
+        self.max_power()
 
     def declare_rand_variables(self):
         z = self.model.rvar((len(self.sim.net.tanks), self.sim.T))
@@ -231,7 +248,18 @@ class ARO:
             else:
                 continue
 
-    # max power constraint
+    def max_power(self):
+        """
+        This function is currently customized for Sopron network only
+        The problem conditions are such that the only power constraint is
+        Power Station D (Pump Stations 5 and 6) must be under 35 kW during the On-Peak periods
+        The meaning is that Pump station 5 cannot be operated with 116 CMH (37.5 kW) during the ON-Peak periods
+        """
+        max_power_constr = pd.read_csv(os.path.join(self.sim.data_folder, 'max_power.csv'))
+        for i, row in max_power_constr.iterrows():
+            fsp_idx = self.sim.net.fsp.loc[self.sim.net.fsp['comb'] == row['comb']].index.values[0]
+            mat = utils.get_mat_for_tariff(self.sim, tariff_name=row['tariff'])
+            self.model.st((mat @ self.x_fsp[fsp_idx, :] == 0).forall(self.uset))
 
     def solve(self):
         self.model.solve(solver=grb, display=False)
