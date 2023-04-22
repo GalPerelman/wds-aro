@@ -52,8 +52,8 @@ class RO:
         self.model.minmax(obj_func)
 
     def one_comb_only(self):
-        for pump_station in self.sim.net.fsp['facility'].unique():
-            idx = self.sim.net.fsp.loc[self.sim.net.fsp['facility'] == pump_station].index.to_list()
+        for pump_station in self.sim.net.fsp['name'].unique():
+            idx = self.sim.net.fsp.loc[self.sim.net.fsp['name'] == pump_station].index.to_list()
             self.model.st(sum([self.x_fsp[_, :] for _ in idx]) <= 1)
 
     def mass_balance(self):
@@ -185,8 +185,8 @@ class ARO:
             self.model.minmax(obj_func, self.nominal_uset)
 
     def one_comb_only(self):
-        for pump_station in self.sim.net.fsp['facility'].unique():
-            idx = self.sim.net.fsp.loc[self.sim.net.fsp['facility'] == pump_station].index.to_list()
+        for pump_station in self.sim.net.fsp['name'].unique():
+            idx = self.sim.net.fsp.loc[self.sim.net.fsp['name'] == pump_station].index.to_list()
             self.model.st((sum([self.x_fsp[_, :] for _ in idx]) <= 1).forall(self.uset))
 
     def mass_balance(self):

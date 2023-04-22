@@ -43,8 +43,8 @@ class LP:
         self.model.min(obj_func)
 
     def one_comb_only(self):
-        for pump_station in self.sim.net.fsp['facility'].unique():
-            idx = self.sim.net.fsp.loc[self.sim.net.fsp['facility'] == pump_station].index.to_list()
+        for pump_station in self.sim.net.fsp['name'].unique():
+            idx = self.sim.net.fsp.loc[self.sim.net.fsp['name'] == pump_station].index.to_list()
             self.model.st(sum([self.x_fsp[_, :] for _ in idx]) <= 1)
 
     def mass_balance(self):
@@ -112,8 +112,6 @@ class LP:
         max_power_constr = pd.read_csv(os.path.join(self.sim.data_folder, 'max_power.csv'))
         for i, row in max_power_constr.iterrows():
             fsp_idx = self.sim.net.fsp.loc[self.sim.net.fsp['comb'] == row['comb']].index.values[0]
-            print(row['comb'])
-            print(fsp_idx)
             mat = utils.get_mat_for_tariff(self.sim, tariff_name=row['tariff'])
             self.model.st(mat @ self.x_fsp[fsp_idx, :] == 0)
 
