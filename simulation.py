@@ -19,7 +19,7 @@ class Simulation:
         self.demands = pd.read_csv(os.path.join(data_folder, 'demands.csv'))
         self.data = self.build()
 
-        self.n_comb_facilities = len(self.net.fsp['facility'].unique())
+        self.n_comb_facilities = len(self.net.fsp['name'].unique())
 
     def build(self):
         df = pd.DataFrame(index=self.time_range)
@@ -29,7 +29,7 @@ class Simulation:
 
     def get_total_max_inflow(self, tank_idx):
         fsp_inflows = self.net.fsp.loc[self.net.fsp['in'] == tank_idx, :]
-        max_fsp_inflow = fsp_inflows[['facility', 'flow']].groupby('facility').max()
+        max_fsp_inflow = fsp_inflows[['name', 'flow']].groupby('name').max()
         total_max_fsp_inflow = max_fsp_inflow['flow'].sum()
 
         vsp_inflows = self.net.vsp.loc[self.net.vsp['in'] == tank_idx, :]
@@ -83,10 +83,32 @@ class Simulation:
         vol = lhs - cum_tank_demand
         return vol
 
+    def get_all_tanks_vol(self, x_fsp, x_vsp):
+        df = pd.DataFrame()
+        for tank_idx, row in self.net.tanks.iterrows():
+            vol = self.get_tank_vol(tank_idx, x_fsp, x_vsp)
+            df = pd.concat([df, pd.DataFrame({tank_idx: vol}, index=self.time_range)], axis=1)
+        return df
+
+    def get_all_flows(self, x_fsp, x_vsp):
+        df = pd.DataFrame()
+        for facility in self.net.fsp['name'].unique():
+            facility_idx = self.net.fsp.loc[self.net.fsp['name'] == facility].index
+            flows = self.net.fsp.loc[facility_idx, 'flow'].values
+            facility_flow = flows @ x_fsp[facility_idx, :]
+            df = pd.concat([df, pd.DataFrame({facility: facility_flow}, index=self.time_range)], axis=1)
+
+        for i, row in self.net.vsp.iterrows():
+            df = pd.concat([df, pd.DataFrame({row['name']: x_vsp[i, :]}, index=self.time_range)], axis=1)
+
+        return df
+
     def get_cost(self, x):
         power = self.net.fsp.loc[:, "power"].values
         power = power @ x
 
         cost = power * self.data.loc[:, "tariff"].values
-        df = pd.DataFrame({'tariff': self.data.loc[:, "tariff"].values, 'p':power, 'c':cost})
+        df = pd.DataFrame({'tariff': self.data.loc[:, "tariff"].values, 'p': power, 'c': cost})
         return cost
+
+
