@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
+import pickle
 from rsome import ro
 import rsome as rso
 from rsome import grb_solver as grb
@@ -264,6 +265,29 @@ class ARO:
     def solve(self):
         self.model.solve(solver=grb, display=False)
         obj, status = self.model.solution.objval, self.model.solution.status
-        x_fsp_val, x_vsp_val = self.x_fsp.get(), self.x_vsp.get()
-        x_nomial = self.x_fsp(self.z.assign(np.zeros(self.z.shape)))
-        return obj, status, x_nomial, x_vsp_val
+        # x_fsp_nominal = self.x_fsp(self.z.assign(np.zeros(self.z.shape)))
+        # x_vsp_nominal = self.x_vsp(self.z.assign(np.zeros(self.z.shape)))
+        return obj, status
+
+    def get_ldr_coefficients(self, export_path=''):
+        """ extract the constant of the linear decision rule
+            each decision variable is affine linear rule such as: pi0 + sum(pi_i * d_i) where i=1,2...t-1
+            pi0 is a scalar, pi is a matrix with shape x_shape * n_adaption_steps (T) * n_adaption_elements (n_tanks)
+            the function return a dictionary as follow:
+            {'x_fsp': {'pi0': pi0, 'pi': pi}, 'x_vsp': {'pi0': pi0, 'pi': pi}}
+        """
+        pi0 = self.x_fsp.get()
+        pi = self.x_fsp.get(self.z)
+        pi[np.isnan(pi)] = 0
+        ldr = {'x_fsp': {'pi0': pi0, 'pi': pi}}
+
+        if self.x_vsp.shape[0] > 0:
+            pi0 = self.x_vsp.get()
+            pi = self.x_vsp.get(self.z)
+            pi[np.isnan(pi)] = 0
+            ldr['x_vsp'] = {'pi0': pi0, 'pi': pi}
+
+        if export_path:
+            with open(export_path, 'wb') as f:
+                pickle.dump(ldr, f)
+        return pi0, pi

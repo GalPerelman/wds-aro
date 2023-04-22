@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 
 
 def get_mat_for_vsp_value_changes(n, valid_idx):
@@ -37,3 +38,26 @@ def get_mat_for_tariff(sim, tariff_name):
     mask = np.where(tariffs == tariff_name, 1, 0)
     mat = np.multiply(mat, mask[:, np.newaxis])
     return mat
+
+
+def read_pkl(pkl_path):
+    with open(pkl_path, 'rb') as f:
+        data = pickle.load(f)
+        return data
+
+
+def extract_values_from_ldr(pi0, pi, sample):
+    pi = np.multiply(pi, sample)
+    for _ in range(len(pi.shape) - len(pi0.shape)):
+        pi = pi.sum(axis=-1)
+
+    return pi0 + pi
+
+
+def get_all_variables_from_pkl(pkl_path, sample):
+    ldr = read_pkl(pkl_path)
+
+    all_vars = {}
+    for var_name, var_ldr in ldr.items():
+        x = extract_values_from_ldr(ldr[var_name]['pi0'], ldr[var_name]['pi'], sample=sample)
+        all_vars[var_name] = x
