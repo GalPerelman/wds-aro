@@ -40,6 +40,11 @@ def get_mat_for_tariff(sim, tariff_name):
     return mat
 
 
+def write_pkl(data, export_path):
+    with open(export_path, 'wb') as f:
+        pickle.dump(data, f)
+
+
 def read_pkl(pkl_path):
     with open(pkl_path, 'rb') as f:
         data = pickle.load(f)

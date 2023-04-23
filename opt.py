@@ -288,6 +288,6 @@ class ARO:
             ldr['x_vsp'] = {'pi0': pi0, 'pi': pi}
 
         if export_path:
-            with open(export_path, 'wb') as f:
-                pickle.dump(ldr, f)
+            utils.write_pkl(ldr, export_path)
+
         return pi0, pi
