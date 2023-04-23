@@ -18,13 +18,14 @@ class Simulation:
         self.elec = pd.read_csv(os.path.join(data_folder, 'tariffs.csv'))
         self.demands = pd.read_csv(os.path.join(data_folder, 'demands.csv'))
         self.data = self.build()
-
         self.n_comb_facilities = len(self.net.fsp['name'].unique())
 
     def build(self):
         df = pd.DataFrame(index=self.time_range)
-        df = pd.merge(df, self.elec, left_index=True, right_on='time', how='inner').drop('time', axis=1)
-        df = pd.merge(df, self.demands, left_index=True, right_on='time', how='inner').drop('time', axis=1)
+        df['hour'] = df.index.to_series() % self.T
+        df = pd.merge(df, self.elec, left_on='hour', right_on='time', how='inner').drop('time', axis=1)
+        df = pd.merge(df, self.demands, left_on='hour', right_on='time', how='inner').drop('time', axis=1)
+        df.index = self.time_range
         return df
 
     def get_total_max_inflow(self, tank_idx):
@@ -51,7 +52,6 @@ class Simulation:
             q_max = self.get_total_max_inflow(tank_idx)
             demand = self.get_tank_demand(tank_idx)
             dynamic_min = [final_vol]
-
             for i, t in enumerate(self.time_range[::-1]):
                 dynamic_min = [max(static_min_vol, dynamic_min[0] + demand.loc[t] - q_max)] + dynamic_min
 
@@ -90,12 +90,12 @@ class Simulation:
             df = pd.concat([df, pd.DataFrame({tank_idx: vol}, index=self.time_range)], axis=1)
         return df
 
-    def get_all_flows(self, x_fsp, x_vsp):
+    def get_facilities_flows(self, x_fsp, x_vsp):
         df = pd.DataFrame()
         for facility in self.net.fsp['name'].unique():
             facility_idx = self.net.fsp.loc[self.net.fsp['name'] == facility].index
             flows = self.net.fsp.loc[facility_idx, 'flow'].values
-            facility_flow = flows @ x_fsp[facility_idx, :]
+            facility_flow = (x_fsp[facility_idx, :] * flows[:, np.newaxis]).sum(axis=0)
             df = pd.concat([df, pd.DataFrame({facility: facility_flow}, index=self.time_range)], axis=1)
 
         for i, row in self.net.vsp.iterrows():
@@ -110,5 +110,11 @@ class Simulation:
         cost = power * self.data.loc[:, "tariff"].values
         df = pd.DataFrame({'tariff': self.data.loc[:, "tariff"].values, 'p': power, 'c': cost})
         return cost
+
+    def get_nominal_demands(self):
+        consumers = self.net.tanks['demand']
+        demands = self.data[consumers]
+        demands = demands.values.flatten("F")
+        return demands
 
 
