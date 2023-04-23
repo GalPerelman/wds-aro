@@ -12,8 +12,9 @@ def construct_demand_cov(sim):
     std = pd.read_csv(os.path.join(sim.data_folder, 'demands_std.csv'), index_col=0)
     all_std = std.values.flatten(order='F')
 
-    cov = np.zeros((std.shape[0] * std.shape[1], std.shape[0] * std.shape[1]))
-    np.fill_diagonal(cov, all_std)
+    mat = np.zeros((std.shape[0] * std.shape[1], std.shape[0] * std.shape[1]))
+    np.fill_diagonal(mat, all_std)
+    cov = mat @ np.eye(std.shape[0] * std.shape[1]) @ mat
     return cov
 
 
@@ -34,7 +35,51 @@ def construct_demand_cov_for_sample(sim, n=1):
 
 
 def multivariate_sample(mean, cov, n):
+    """
+    Construct gaussian (multivariate normal) sample based on mean and cov
+    :param mean:    vector of nominal values (n_consumers * T, 1)
+    :param cov:     cov matrix (n_consumers * T, n_consumers * T)
+    :param n:       sample size
+    :return:        sample matrix
+    """
+    m = len(mean)
+    # check for 0 rows - certain entries (std=0)
+    certain_idx = np.all(cov == 0, axis=1)
+    uncertain_idx = np.logical_not(np.all(cov == 0, axis=1))
+
+    # select only uncertain consumers
+    cov = cov[uncertain_idx, :]
+    cov = cov[:, uncertain_idx]
+    mean = mean[uncertain_idx]
+
     delta = np.linalg.cholesky(cov)
     z = np.random.normal(size=(n, len(mean)))
-    x = mean + (z.dot(delta)).T
-    return x
+    x = mean.reshape(-1, 1) * (1 + (z.dot(delta)).T)
+
+    # restore certain entries
+    sample = np.zeros((m, n))
+    sample[np.argwhere(uncertain_idx)[:, 0], :] = x
+    return sample
+
+
+def decompose_sample(sample, sim):
+    """
+    Convert a single sample to a workable df
+    The random sampling function returns a 1D very long vector as follows:
+    [consumer-1-day-1, consumer-2-day-1 ... consumerN-day1,
+    consumer-1-day-2, consumer-2-day-2 ... consumerN-day2,
+    ...
+    consumer-1-day-DD, consumer2-day-DD ... consumer-N-day-DD]
+
+    The function returns a df with index corresponding to simulation time range where columns are consumers
+    """
+    df = pd.DataFrame()
+    n = int(len(sample) / (sim.net.n_tanks * sim.T))
+    for i in range(n):
+        block = sample[i*sim.T*sim.net.n_tanks: (i+1)*sim.T*sim.net.n_tanks]
+        block = block.reshape(sim.T, sim.net.n_tanks, order='F')
+        df = pd.concat([df, pd.DataFrame(block, columns=sim.net.tanks.loc[:, 'demand'])], axis=0)
+
+    df = df.rename_axis(None, axis=1)
+    df.reset_index(inplace=True, names=['hr'])
+    return df
