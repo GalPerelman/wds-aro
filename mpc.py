@@ -16,6 +16,7 @@ class MPC:
         self.step_size = step_size
 
         self.results = {}
+        self.cost = 0
         self.sim = self.init_sim()
 
     def init_sim(self):
@@ -36,6 +37,8 @@ class MPC:
         if self.export_path:
             self.export_all_results()
 
+        return self.cost
+
     def optimize(self):
         lp = LP(self.sim)
         obj, status, x_fsp, x_vsp = lp.solve()
@@ -44,6 +47,8 @@ class MPC:
         facilities_flows = self.sim.get_facilities_flows(x_fsp, x_vsp)
         self.results[self.t1] = {'objective': obj, 'status': status, 'x_fsp': x_fsp, 'x_vsp': x_vsp,
                                  'tanks_volume': tanks_volume, 'facilities_flows': facilities_flows}
+
+        self.cost += self.get_last_step_cost(x_fsp)
 
     def set_tanks_for_next_period(self, prev_init_volumes):
         last_step = self.get_last_step()
@@ -61,6 +66,7 @@ class MPC:
             tank_init_vol = prev_init_volumes[tank_idx]
             next_period_init_vol = tank_init_vol + inflow - outflow - demand
             self.sim.net.tanks.loc[tank_idx, 'init_vol'] = next_period_init_vol
+            self.sim.net.tanks.loc[tank_idx, 'final_vol'] = next_period_init_vol
 
     def forward(self):
         self.t1 += self.step_size
@@ -68,6 +74,12 @@ class MPC:
 
     def get_last_step(self):
         return max(self.results.keys())
+
+    def get_last_step_cost(self, x_fsp):
+        power = self.sim.net.fsp.loc[:, "power"].values
+        tariff = self.sim.data.loc[self.t1, 'tariff']
+        cost = power @ x_fsp[:, 0] * tariff
+        return cost
 
     def export_all_results(self):
         utils.write_pkl(self.results, self.export_path)
