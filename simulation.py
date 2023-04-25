@@ -108,7 +108,6 @@ class Simulation:
         power = power @ x
 
         cost = power * self.data.loc[:, "tariff"].values
-        df = pd.DataFrame({'tariff': self.data.loc[:, "tariff"].values, 'p': power, 'c': cost})
         return cost
 
     def get_nominal_demands(self):
