@@ -5,25 +5,26 @@ from lp import LP
 
 
 class MPC:
-    def __init__(self, data_folder, start_hour, horizon, num_steps, actual_demands, step_size=1, export_path=''):
+    def __init__(self, data_folder, t1, horizon, n_steps, actual_demands, ignore_first_day, step_size=1, export_path=''):
         self.data_folder = data_folder
-        self.t1 = start_hour
+        self.t1 = t1
         self.t2 = self.t1 + horizon - 1
         self.horizon = horizon
-        self.num_steps = num_steps
+        self.n_steps = n_steps
         self.actual_demands = actual_demands
-        self.export_path = export_path
+        self.ignore_first_day = ignore_first_day
         self.step_size = step_size
+        self.export_path = export_path
 
         self.results = {}
-        self.cost = 0
+        self.cost_record = []
         self.sim = self.init_sim()
 
     def init_sim(self):
         return Simulation(self.data_folder, self.t1, self.t2)
 
     def run(self):
-        for istep in range(self.num_steps):
+        for istep in range(self.n_steps):
             self.optimize()
             # get previous step initial volumes
             prev_init_volumes = self.sim.net.tanks.loc[:, 'init_vol']
@@ -37,7 +38,11 @@ class MPC:
         if self.export_path:
             self.export_all_results()
 
-        return self.cost
+        if self.ignore_first_day:
+            s = 24
+        else:
+            s = 0
+        return sum(self.cost_record[-s:])
 
     def optimize(self):
         lp = LP(self.sim)
@@ -48,7 +53,7 @@ class MPC:
         self.results[self.t1] = {'objective': obj, 'status': status, 'x_fsp': x_fsp, 'x_vsp': x_vsp,
                                  'tanks_volume': tanks_volume, 'facilities_flows': facilities_flows}
 
-        self.cost += self.get_last_step_cost(x_fsp)
+        self.cost_record.append(self.get_last_step_cost(x_fsp))
 
     def set_tanks_for_next_period(self, prev_init_volumes):
         last_step = self.get_last_step()
@@ -66,7 +71,7 @@ class MPC:
             tank_init_vol = prev_init_volumes[tank_idx]
             next_period_init_vol = tank_init_vol + inflow - outflow - demand
             self.sim.net.tanks.loc[tank_idx, 'init_vol'] = next_period_init_vol
-            self.sim.net.tanks.loc[tank_idx, 'final_vol'] = next_period_init_vol
+            # self.sim.net.tanks.loc[tank_idx, 'final_vol'] = next_period_init_vol
 
     def forward(self):
         self.t1 += self.step_size
