@@ -66,3 +66,5 @@ def get_all_variables_from_pkl(pkl_path, sample):
     for var_name, var_ldr in ldr.items():
         x = extract_values_from_ldr(ldr[var_name]['pi0'], ldr[var_name]['pi'], sample=sample)
         all_vars[var_name] = x
+
+    return all_vars
