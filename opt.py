@@ -126,9 +126,12 @@ class RO:
 
     def solve(self):
         self.model.solve(solver=grb, display=False)
-        obj, status = self.model.solution.objval, self.model.solution.status
-        x_fsp_val, x_vsp_val = self.x_fsp.get(), self.x_vsp.get()
-        return obj, status, x_fsp_val, x_vsp_val
+        if self.model.solution.status == 2:
+            obj, status = self.model.solution.objval, self.model.solution.status
+            x_fsp_val, x_vsp_val = self.x_fsp.get(), self.x_vsp.get()
+            return obj, status, x_fsp_val, x_vsp_val
+        else:
+            return None, None, None, None
 
 
 class ARO:
@@ -264,13 +267,16 @@ class ARO:
 
     def solve(self):
         self.model.solve(solver=grb, display=False)
-        obj, status = self.model.solution.objval, self.model.solution.status
-        x_fsp_nominal = self.x_fsp(self.z.assign(np.zeros(self.z.shape)))
-        if self.x_vsp.shape[0] > 0:
-            x_vsp_nominal = self.x_vsp(self.z.assign(np.zeros(self.z.shape)))
+        if self.model.solution.status == 2:
+            obj, status = self.model.solution.objval, self.model.solution.status
+            x_fsp_nominal = self.x_fsp(self.z.assign(np.zeros(self.z.shape)))
+            if self.x_vsp.shape[0] > 0:
+                x_vsp_nominal = self.x_vsp(self.z.assign(np.zeros(self.z.shape)))
+            else:
+                x_vsp_nominal = None
+            return obj, status, x_fsp_nominal, x_vsp_nominal
         else:
-            x_vsp_nominal = None
-        return obj, status, x_fsp_nominal, x_vsp_nominal
+            return None, None, None, None
 
     def get_ldr_coefficients(self, export_path=''):
         """ extract the constant of the linear decision rule
