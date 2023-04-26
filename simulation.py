@@ -22,7 +22,7 @@ class Simulation:
 
     def build(self):
         df = pd.DataFrame(index=self.time_range)
-        df['hour'] = df.index.to_series() % self.T
+        df['hour'] = df.index.to_series() % 24
         df = pd.merge(df, self.elec, left_on='hour', right_on='time', how='inner').drop('time', axis=1)
         df = pd.merge(df, self.demands, left_on='hour', right_on='time', how='inner').drop('time', axis=1)
         df.index = self.time_range
@@ -103,9 +103,16 @@ class Simulation:
 
         return df
 
-    def get_cost(self, x):
+    def get_cost(self, x_fsp):
+        """
+        Cost is calculated based on Fixed Speed Pumps alone
+        VSP have no additional costs in the examples of this paper
+        All modules are built such that vsp costs can be added easily in the future
+
+        The function returns a vector of the hourly cost
+        """
         power = self.net.fsp.loc[:, "power"].values
-        power = power @ x
+        power = power @ x_fsp
 
         cost = power * self.data.loc[:, "tariff"].values
         return cost
