@@ -126,11 +126,11 @@ class RO:
 
     def solve(self):
         self.model.solve(solver=grb, display=False)
-        if self.model.solution.status == 2:
+        try:
             obj, status = self.model.solution.objval, self.model.solution.status
             x_fsp_val, x_vsp_val = self.x_fsp.get(), self.x_vsp.get()
             return obj, status, x_fsp_val, x_vsp_val
-        else:
+        except AttributeError:
             return None, None, None, None
 
 
