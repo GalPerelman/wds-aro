@@ -2,9 +2,12 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import ticker as mtick
+from typing import Iterable
+
+import simulation
 
 
-def plot_all_tanks(nrows, ncols, sim, x_fsp, x_vsp):
+def plot_all_tanks(nrows: int, ncols: int, sim: simulation.Simulation, x_fsp: np.ndarray, x_vsp: np.ndarray):
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols)
     axes = axes.ravel()
     for i, ax in enumerate(axes):
@@ -22,7 +25,7 @@ def plot_all_tanks(nrows, ncols, sim, x_fsp, x_vsp):
     return fig
 
 
-def plot_all_vsp(nrows, ncols, x_vsp):
+def plot_all_vsp(nrows: int, ncols: int, x_vsp: np.ndarray):
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols)
     axes = axes.ravel()
     for i in range(x_vsp.shape[0]):
@@ -34,18 +37,24 @@ def plot_all_vsp(nrows, ncols, x_vsp):
     return fig
 
 
-def plot_all_fsp(nrows, ncols, x_fsp):
+def plot_all_fsp(nrows: int, ncols: int, x_fsp: np.ndarray):
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols)
     axes = axes.ravel()
     for i in range(x_fsp.shape[0]):
-        axes[i].plot(x_fsp[i, :])
+        axes[i].step(range(len(x_fsp[i, :])), x_fsp[i, :], where='post')
         axes[i].grid()
         axes[i].set_title(f'FSP {i + 1}')
 
     return fig
 
 
-def correlation_matrix(mat, major_ticks=False, norm=False):
+def plot_monte_carlo_histogram(values: Iterable):
+    fig, ax = plt.subplots()
+    ax.hist(values, bins=25, alpha=0.6, edgecolor='k')
+    return ax
+
+
+def correlation_matrix(mat: np.ndarray, major_ticks: bool = False, norm: bool = False):
     if norm:
         mat = (mat - mat.min()) / (mat.max() - mat.min())
 
