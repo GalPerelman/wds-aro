@@ -1,18 +1,25 @@
-
+import matplotlib.pyplot as plt
 import utils
 from simulation import Simulation
 from lp import LP
 
+import numpy as np
+np.set_printoptions(linewidth=np.inf)
+np.set_printoptions(precision=3)
+
 
 class MPC:
-    def __init__(self, data_folder, t1, horizon, n_steps, actual_demands, ignore_first_day, step_size=1, export_path=''):
+    def __init__(self, data_folder, t1, horizon, n_steps, actual_demands, ignore_n_hr, final_vol_constraint,
+                 step_size=1, export_path=''):
+
         self.data_folder = data_folder
         self.t1 = t1
         self.t2 = self.t1 + horizon - 1
         self.horizon = horizon
         self.n_steps = n_steps
         self.actual_demands = actual_demands
-        self.ignore_first_day = ignore_first_day
+        self.ignore_n_hr = ignore_n_hr
+        self.final_vol_constraint = final_vol_constraint
         self.step_size = step_size
         self.export_path = export_path
 
@@ -26,23 +33,29 @@ class MPC:
     def run(self):
         for istep in range(self.n_steps):
             self.optimize()
-            # get previous step initial volumes
+
+            # get previous step values
             prev_init_volumes = self.sim.net.tanks.loc[:, 'init_vol']
+            vsp_cumm_volumes = self.sim.net.vsp.loc[:, ['name', 'cumm_vol']]
+
             # go forward - set new t1, t2
             self.forward()
+
             # init new simulation - load electricity tariffs and nominal demands
             self.sim = self.init_sim()
-            # set the tank level for the new sim
+
+            # set values for the new sim
             self.set_tanks_for_next_period(prev_init_volumes)
+            self.set_vsp_cumm_vol(vsp_cumm_volumes)
+            self.set_vsp_init_flow()
 
         if self.export_path:
             self.export_all_results()
 
-        if self.ignore_first_day:
-            s = 24
+        if self.ignore_n_hr:
+            return sum(self.cost_record[self.ignore_n_hr:])
         else:
-            s = 0
-        return sum(self.cost_record[-s:])
+            return sum(self.cost_record)
 
     def optimize(self):
         lp = LP(self.sim)
@@ -71,7 +84,27 @@ class MPC:
             tank_init_vol = prev_init_volumes[tank_idx]
             next_period_init_vol = tank_init_vol + inflow - outflow - demand
             self.sim.net.tanks.loc[tank_idx, 'init_vol'] = next_period_init_vol
-            # self.sim.net.tanks.loc[tank_idx, 'final_vol'] = next_period_init_vol
+            if not self.final_vol_constraint:
+                self.sim.net.tanks.loc[tank_idx, 'final_vol'] = 0
+
+    def set_vsp_cumm_vol(self, vsp_cumm_vol):
+        if (self.t1 + 24) % 24 == 0:
+            for i, row in self.sim.net.vsp.iterrows():
+                self.sim.net.vsp.loc[i, 'cumm_vol'] = 0
+        else:
+            last_step = self.get_last_step()
+            vsp_flows = self.results[last_step]['facilities_flows'][self.sim.net.vsp_names].iloc[0]
+            for i, row in self.sim.net.vsp.iterrows():
+                self.sim.net.vsp.loc[i, 'cumm_vol'] = vsp_cumm_vol['cumm_vol'].iloc[i] + vsp_flows.iloc[i]
+
+    def set_vsp_init_flow(self):
+        last_step = self.get_last_step()
+        flows = self.results[last_step]['facilities_flows'][self.sim.net.vsp_names].iloc[0]
+        for i, row in self.sim.net.vsp.iterrows():
+            if np.isnan(row['init_flow']):
+                continue
+            else:
+                self.sim.net.vsp.loc[i, 'init_flow'] = flows.loc[row['name']]
 
     def forward(self):
         self.t1 += self.step_size

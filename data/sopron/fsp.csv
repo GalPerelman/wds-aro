@@ -1,4 +1,4 @@
-﻿comb,facility,flow,power,in,out,power_station
+﻿comb,name,flow,power,in,out,power_station
 1,p1,150,50,4,1,A
 2,p1,360,125,4,1,A
 3,p2,110,5.5,4,2,B

@@ -11,11 +11,9 @@ import utils
 class LP:
     def __init__(self, sim):
         self.sim = sim
-
         self.model = ro.Model()
         self.x_fsp = self.model.dvar((len(self.sim.net.fsp), self.sim.T))
         self.x_vsp = self.model.dvar((len(self.sim.net.vsp), self.sim.T))
-
         self.build()
 
     def build(self):
@@ -80,16 +78,32 @@ class LP:
                 self.model.st(lhs <= max_vol)
 
     def vsp_initial_flow(self):
+        hour_of_the_day = self.sim.t1 % 24
         for i, row in self.sim.net.vsp.iterrows():
             if np.isnan(row['init_flow']):
+                continue
+            elif hour_of_the_day in [7, 13, 17, 20]:
+                # In case that simulation start at time when tariff is change from previous hour
+                # The initial vsp flow can be changed according to the vsp_flow_change_policy
+                # usually simulation starts at time 0 but this modification is required for MPC (folding horizon runs)
+                # This is a temporary (not general) solution.
+                # The hours when tariff is changing should be extracted from the data
                 continue
             else:
                 self.model.st(self.x_vsp[i, 0] == row['init_flow'])
 
-    def vsp_total_vol(self):
+    def vsp_total_vol(self, daily=False):
         for i, row in self.sim.net.vsp.iterrows():
-            self.model.st(self.x_vsp[i, :].sum() >= row['min_vol'])
-            self.model.st(self.x_vsp[i, :].sum() <= row['max_vol'])
+            if daily:
+                # If total volume is daily (until day ends)
+                start_hr = self.sim.t1
+                day_end_hr = ((start_hr // 24) + 1) * 24
+                self.model.st(self.x_vsp[i, :(day_end_hr - start_hr)].sum() + row['cumm_vol'] >= row['min_vol'])
+                self.model.st(self.x_vsp[i, :(day_end_hr - start_hr)].sum() + row['cumm_vol'] <= row['max_vol'])
+            else:
+                # If total volume is for any 24 hours cycle
+                self.model.st(self.x_vsp[i, :].sum() >= row['min_vol'])
+                self.model.st(self.x_vsp[i, :].sum() <= row['max_vol'])
 
     def vsp_flow_change(self):
         const_tariff = utils.get_constant_tariff_periods(self.sim.data['tariff']).astype(int)

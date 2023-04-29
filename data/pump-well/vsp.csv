@@ -1,1 +1,1 @@
-﻿idx,name,min_flow,max_flow,init_flow,in,out
+﻿idx,name,min_flow,max_flow,init_flow,in,out,min_vol,max_vol,cumm_vol,const_flow
