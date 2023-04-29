@@ -15,6 +15,9 @@ class Network:
         self.n_vsp = len(self.vsp)
         self.n_tanks = len(self.tanks)
 
+        self.fsp_names = self.fsp.loc[:, 'name']
+        self.vsp_names = self.vsp.loc[:, 'name']
+
     @staticmethod
     def get_cumulative_mat(n, multiplier):
         """ multiplier can be flow direction 1 or -1 """
