@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
-import math
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
+from matplotlib.lines import Line2D
 from scipy.stats import multivariate_normal
 
 
@@ -21,13 +21,22 @@ def load_data(path, filter_year=None):
     return pivoted_df, residuals
 
 
-def plot_daily_pattern(data: pd.DataFrame):
-    fig, ax = plt.subplots()
-    ax.plot(data.values.T, c='C0', alpha=0.3)
+def plot_daily_pattern(data: pd.DataFrame, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots()
+    ax.plot(data.values.T, c='C0', alpha=0.2)
     ax.plot(data.mean(axis=0).droplevel(0), c='k')
-    ax.set_ylabel('Demand (CMH)')
-    ax.set_xlabel('Time')
+    ax.set_ylabel('Demand ($m^3$/hr)')
+    ax.set_xlabel('Hour of the day')
     ax.grid()
+
+    handles, labels = plt.gca().get_legend_handles_labels()
+    observed = Line2D([0], [0], label='Daily observations', color='C0', alpha=0.4)
+    mean = Line2D([0], [0], label='Hourly mean', color='k')
+    handles.extend([observed, mean])
+    plt.legend(handles=handles)
+
+    return ax
 
 
 def eigsorted(cov):
@@ -72,19 +81,27 @@ def plot_bivariate_distribution(mean, cov, ax, N):
     return ax
 
 
+def scatter_residuals(x, y, axes_lim=False, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    ax = plot_confidence_ellipsoids(x, y, ax)
+    ax.scatter(x, y, alpha=0.4, c='dodgerblue', edgecolors='k', linewidths=0.5, zorder=5, s=15)
+    if axes_lim:
+        ax.set_xlim(-axes_lim, axes_lim)
+        ax.set_ylim(-axes_lim, axes_lim)
+    return ax
+
+
 def plot_residuals(residuals, t):
     fig, axes = plt.subplots(nrows=t, ncols=t, figsize=(8, 6))
     min_lim, max_lim = np.quantile(residuals, 0.01) * 0.85, np.quantile(residuals, 0.99) * 1.15
-    n = int(math.ceil(max_lim / 100.0)) * 100
     for i in range(t):
         for j in range(t):
             if i != j:
                 x, y = residuals[i], residuals[j]
-                # mean_1, mean_2 = x.mean(), y.mean()
-                # axes[i, j] = plot_bivariate_distribution(np.array([mean_1, mean_2]), np.cov(x, y), axes[i, j], n)
-                axes[i, j] = plot_confidence_ellipsoids(residuals[i], residuals[j], axes[i, j])
-                axes[i, j].scatter(residuals[i], residuals[j], alpha=0.4, c='dodgerblue', edgecolors='k',
-                                   linewidths=0.5, zorder=5, s=15)
+                axes[i, j] = plot_confidence_ellipsoids(x, y, axes[i, j])
+                axes[i, j].scatter(x, y, alpha=0.4, c='dodgerblue', edgecolors='k', linewidths=0.5, zorder=5, s=15)
                 axes[i, j].set_xlim(min_lim, max_lim)
                 axes[i, j].set_ylim(min_lim, max_lim)
 
@@ -95,10 +112,10 @@ def plot_residuals(residuals, t):
             axes[i, j].set_yticklabels([])
 
     for i, ax in enumerate(axes[0, :]):
-        ax.set_title(f'Time {i}', fontsize=12)
+        ax.set_title(f'Time {i}', fontsize=10)
 
     for i, ax in enumerate(axes[:, 0]):
-        ax.set_ylabel(f'Time {i}', fontsize=12)
+        ax.set_ylabel(f'Time {i}', fontsize=10)
 
     plt.subplots_adjust(left=0.08, right=0.95, bottom=0.08, top=0.95, wspace=0.06, hspace=0.1)
 
@@ -106,6 +123,7 @@ def plot_residuals(residuals, t):
 if __name__ == "__main__":
     data_path = 'observed_demands.csv'
     pivoted_df, residuals = load_data(data_path)
+    plot_residuals(residuals, t=6)
     plot_daily_pattern(pivoted_df)
-    plot_residuals(residuals, t=5)
+
     plt.show()
