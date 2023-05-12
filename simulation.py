@@ -117,10 +117,12 @@ class Simulation:
         cost = power * self.data.loc[:, "tariff"].values
         return cost
 
-    def get_nominal_demands(self):
+    def get_nominal_demands(self, flatten=False):
         consumers = self.net.tanks['demand']
-        demands = self.data[consumers]
-        demands = demands.values.flatten("F")
+        demands = self.data[consumers].values
+        if flatten:
+            demands = demands.flatten("F")
+
         return demands
 
 

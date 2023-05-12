@@ -10,11 +10,11 @@ import utils
 
 
 class RO:
-    def __init__(self, sim, uset_type, omega, delta):
+    def __init__(self, sim, uset_type, omega, mapping_mat):
         self.sim = sim
         self.uset_type = uset_type
         self.omega = omega              # omega = robustness, size of uncertainty set
-        self.delta = delta              # level of uncertainty
+        self.mapping_mat = mapping_mat
 
         self.model = ro.Model()
         self.z, self.uset = self.declare_rand_variables()
@@ -31,8 +31,8 @@ class RO:
         self.max_power()
 
     def declare_rand_variables(self):
-        z = self.model.rvar((len(self.sim.net.tanks), self.sim.T))
-        uset = rso.norm(z.reshape(-1), self.uset_type) <= self.omega
+        z = self.model.rvar((len(self.sim.net.tanks) * self.sim.T))
+        uset = rso.norm(z, self.uset_type) <= self.omega
         return z, uset
 
     def declare_decision_variables(self):
@@ -57,6 +57,7 @@ class RO:
             self.model.st(sum([self.x_fsp[_, :] for _ in idx]) <= 1)
 
     def mass_balance(self):
+        zz = self.mapping_mat @ self.z
         for tank_idx, row in self.sim.net.tanks.iterrows():
             tank_consumer = self.sim.net.tanks.loc[tank_idx, 'demand']
             tank_demand = self.sim.data[tank_consumer].values
@@ -84,7 +85,9 @@ class RO:
                 if vsp_outflow_idx:
                     lhs -= (self.x_vsp[vsp_outflow_idx, :t + 1]).sum()
 
-                lhs = lhs - ((self.delta * self.z[tank_idx - 1, :t + 1] + 1) * tank_demand[:t + 1]).sum()
+                # lhs = lhs - ((self.delta * self.z[tank_idx - 1, :t + 1] + 1) * tank_demand[:t + 1]).sum()
+                start_idx = (tank_idx - 1) * self.sim.T
+                lhs = lhs - ((zz[start_idx: start_idx + t + 1]) + tank_demand[:t + 1]).sum()
                 self.model.st((lhs >= min_vol_vector[t]).forall(self.uset))
                 self.model.st((lhs <= max_vol).forall(self.uset))
 
@@ -135,11 +138,11 @@ class RO:
 
 
 class ARO:
-    def __init__(self, sim, uset_type, omega, delta, worst_case=False):
+    def __init__(self, sim, uset_type, omega, mapping_mat, worst_case=False):
         self.sim = sim
         self.uset_type = uset_type
         self.omega = omega              # omega = robustness, size of uncertainty set
-        self.delta = delta              # level of uncertainty
+        self.mapping_mat = mapping_mat
         self.worst_case = worst_case    # return worst_case or nominal objective value
 
         self.model = ro.Model()
@@ -193,6 +196,7 @@ class ARO:
             self.model.st((sum([self.x_fsp[_, :] for _ in idx]) <= 1).forall(self.uset))
 
     def mass_balance(self):
+        zz = self.mapping_mat @ self.z.reshape(-1)
         for tank_idx, row in self.sim.net.tanks.iterrows():
             tank_consumer = self.sim.net.tanks.loc[tank_idx, 'demand']
             tank_demand = self.sim.data[tank_consumer].values
@@ -221,7 +225,9 @@ class ARO:
                     lhs -= (self.x_vsp[vsp_outflow_idx, :t + 1]).sum()
 
                 if self.sim.net.tanks.loc[tank_idx, "uncertain"] == 1:
-                    lhs = lhs - ((self.delta * self.z[tank_idx - 1, :t + 1] + 1) * tank_demand[:t + 1]).sum()
+                    # lhs = lhs - ((self.delta * self.z[tank_idx - 1, :t + 1] + 1) * tank_demand[:t + 1]).sum()
+                    start_idx = (tank_idx - 1) * self.sim.T
+                    lhs = lhs - ((zz[start_idx: start_idx + t + 1]) + tank_demand[:t + 1]).sum()
                     self.model.st((lhs >= min_vol_vector[t]).forall(self.uset))
                     self.model.st((lhs <= max_vol).forall(self.uset))
                 else:
