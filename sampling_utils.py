@@ -2,19 +2,30 @@ import os
 import pandas as pd
 import numpy as np
 
+import uncertainty_utils as unc
+
 
 def construct_demand_cov(sim):
     """
     Hourly cov matrix for all simulation consumers
     The cov matrix shape is T * n_tanks where every T block is the cov of the i consumer
     This structure allows to add correlation coefficients between time steps and between consumers
-    """
-    std = pd.read_csv(os.path.join(sim.data_folder, 'demands_std.csv'), index_col=0)
-    all_std = std.values.flatten(order='F')
 
-    mat = np.zeros((std.shape[0] * std.shape[1], std.shape[0] * std.shape[1]))
-    np.fill_diagonal(mat, all_std)
-    cov = mat @ np.eye(std.shape[0] * std.shape[1]) @ mat
+    Here std values are as percentage of nominal.
+    Later when sample is draw the resulted cov is multiplied by nominal values
+    """
+    nominal_demands = sim.get_nominal_demands(flatten=False)
+    std_as_percentage = pd.read_csv(os.path.join(sim.data_folder, 'demands_std.csv'), index_col=0).iloc[:24].values
+    unc_set = unc.Constructor(t=nominal_demands.shape[0], n=nominal_demands.shape[1], std=std_as_percentage,
+                              corr_type='decline', temporal_rho=0.6, spatial_rho=0.8)
+    cov = unc_set.cov
+
+    # old version - no correlation coefficients
+    # std = pd.read_csv(os.path.join(sim.data_folder, 'demands_std.csv'), index_col=0)
+    # all_std = std.values.flatten(order='F')
+    # mat = np.zeros((std.shape[0] * std.shape[1], std.shape[0] * std.shape[1]))
+    # np.fill_diagonal(mat, all_std)
+    # cov = mat @ np.eye(std.shape[0] * std.shape[1]) @ mat
     return cov
 
 
@@ -29,7 +40,7 @@ def construct_demand_cov_for_sample(sim, n=1):
     cov = np.zeros((demand_cov.shape[0] * n, demand_cov.shape[0] * n))
 
     for i in range(n):
-        cov[i*m: (i+1)*m, i*m: (i+1)*m] = demand_cov
+        cov[i * m: (i + 1) * m, i * m: (i + 1) * m] = demand_cov
 
     return cov
 
@@ -76,7 +87,7 @@ def decompose_sample(sample, sim):
     df = pd.DataFrame()
     n = int(len(sample) / (sim.net.n_tanks * sim.T))
     for i in range(n):
-        block = sample[i*sim.T*sim.net.n_tanks: (i+1)*sim.T*sim.net.n_tanks]
+        block = sample[i * sim.T * sim.net.n_tanks: (i + 1) * sim.T * sim.net.n_tanks]
         block = block.reshape(sim.T, sim.net.n_tanks, order='F')
         df = pd.concat([df, pd.DataFrame(block, columns=sim.net.tanks.loc[:, 'demand'])], axis=0)
 
