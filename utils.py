@@ -52,7 +52,7 @@ def read_pkl(pkl_path):
 
 
 def extract_values_from_ldr(pi0, pi, sample):
-    pi = np.multiply(pi, sample)
+    pi = np.multiply(pi, sample.T)
     for _ in range(len(pi.shape) - len(pi0.shape)):
         pi = pi.sum(axis=-1)
 
