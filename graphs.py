@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import pandas as pd
 from matplotlib import ticker as mtick
 from typing import Iterable
-
 import simulation
 
 
@@ -50,15 +50,15 @@ def plot_all_fsp(nrows: int, ncols: int, x_fsp: np.ndarray):
 
 def plot_monte_carlo_histogram(values: Iterable):
     fig, ax = plt.subplots()
-    ax.hist(values, bins=25, alpha=0.6, edgecolor='k')
+    ax.hist(values, bins=20, alpha=0.6, edgecolor='k')
     return ax
 
 
-def correlation_matrix(mat: np.ndarray, major_ticks: bool = False, norm: bool = False):
+def correlation_matrix(mat: np.ndarray, major_ticks: bool = False, norm: bool = False, cmap_name: str = 'Blues'):
     if norm:
         mat = (mat - mat.min()) / (mat.max() - mat.min())
 
-    cmap = plt.get_cmap('Blues')
+    cmap = plt.get_cmap(cmap_name)
     mat_norm = max(abs(mat.min()), abs(mat.max()))
     im = plt.imshow(mat, cmap=cmap, vmin=0, vmax=mat_norm)
     ax = plt.gca()
@@ -81,4 +81,29 @@ def correlation_matrix(mat: np.ndarray, major_ticks: bool = False, norm: bool = 
 
     plt.subplots_adjust(top=0.9, bottom=0.13, left=0.055, right=0.9, hspace=0.2, wspace=0.2)
 
+
+def plot_price_of_robustness(por_path: str, omega: float):
+    df = pd.read_csv(por_path, index_col=0)
+    deterministic = df.loc[df['sigma'] == 0, 'nom']
+
+    df = df.loc[(df['omega'] == omega) & (df['sigma'] > 0)]
+
+    fig, ax = plt.subplots()
+    ax.hlines(deterministic, df['sigma'].min(), df['sigma'].max(), colors='k', linestyle='--', label='Deterministic')
+    ax.plot(df['sigma'], df['nom'], marker='o',  mfc='white', label='ARO')
+    ax.plot(df['sigma'], df['wc'], marker='o', mfc='white', label='RO')
+
+    props = dict(boxstyle='round', facecolor='white', alpha=0.4, edgecolor='none')
+    df['improve'] = 100 * (df['wc'] - df['nom']) / df['nom']
+    for i, (sigma, nom) in enumerate(zip(df['sigma'], df['nom'])):
+        text_str = f"{df['improve'].iloc[i]:.1f}%"
+        ax.text(x=sigma-(sigma-0.05)/20, y=nom+10, s=text_str, bbox=props)
+
+    ax.xaxis.set_major_formatter(mtick.FormatStrFormatter('%.2f'))
+    ax.xaxis.set_major_locator(mtick.MultipleLocator(0.05))
+
+    ax.set_xlabel('Level of uncertainty (%)')
+    ax.set_ylabel('Energy Cost (€)')
+    ax.grid()
+    ax.legend()
 
