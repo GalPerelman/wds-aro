@@ -28,7 +28,7 @@ class Constructor:
             mat = constant_correlation_mat(self.t, self.temporal_rho)
         return mat
 
-    def build_cov(self):
+    def build_cov(self, force_pd=True):
         mat = np.zeros((self.t * self.n, self.t * self.n))
         for i, std_i in enumerate(self.std.T):
             consumer_cov = get_cov_from_std(std_i, self.corr_mat)
@@ -40,6 +40,9 @@ class Constructor:
                     # correlation between elements - only at same time steps
                     np.fill_diagonal(mat[i * self.t: i * self.t + self.t, j * self.t: j * self.t + self.t],
                                      np.multiply(std_i, std_j) * self.spatial_rho)
+
+        if force_pd and not is_pd(mat):
+            mat = nearest_positive_defined(mat)
 
         return mat
 
@@ -126,27 +129,28 @@ def decline_correlation_mat(size, rho):
     return mat
 
 
+def construct_uset(sim, sigma):
+    nominal_demands = sim.get_nominal_demands(flatten=False)
+    std_as_percentage = np.full((24, 1), sigma)
+    std = nominal_demands * std_as_percentage
+    unc_set = Constructor(t=nominal_demands.shape[0], n=nominal_demands.shape[1], std=std,
+                              corr_type='decline', temporal_rho=0.6, spatial_rho=0.8)
+    return unc_set
+
+
 if __name__ == "__main__":
-    """ sopron """
+    """ sopron example """
     std_as_percentage = pd.read_csv('data/sopron/demands_std.csv', index_col=0).iloc[:24].values
     nom = pd.read_csv('data/sopron/demands.csv', index_col=0).iloc[:24].values
     std = nom * std_as_percentage
-
-    uset = USet(t=nom.shape[0], n=nom.shape[1], std=std, corr_type='decline', temporal_rho=0.4, spatial_rho=0.8)
-
+    uset = Constructor(t=nom.shape[0], n=nom.shape[1], std=std, corr_type='decline', temporal_rho=0.4, spatial_rho=0.8)
     cov = nearest_positive_defined(uset.cov)
-    print(cov[72:192, 72:192])
-    # np.savetxt('test.csv', uset.cov[72:192, 72:192], delimiter=',')
-
-    # graphs.correlation_matrix(uset.delta)
-    # plt.show()
 
 
 
 
 
-#
-#
+
 # def build_cov_from_std(std, rho: Union[int, float, np.array] = 0):
 #     n = len(std)
 #     sigma = np.zeros((n, n))
