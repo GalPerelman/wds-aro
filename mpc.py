@@ -1,15 +1,17 @@
-import matplotlib.pyplot as plt
+import numpy as np
+
 import utils
 from simulation import Simulation
+import uncertainty_utils as unc
 from lp import LP
+from opt import RO
 
-import numpy as np
 np.set_printoptions(linewidth=np.inf)
 np.set_printoptions(precision=3)
 
 
 class MPC:
-    def __init__(self, data_folder, t1, horizon, n_steps, actual_demands, ignore_n_hr, final_vol_constraint,
+    def __init__(self, data_folder, t1, horizon, n_steps, actual_demands, ignore_n_hr, final_vol_constraint, opt_params,
                  step_size=1, export_path=''):
 
         self.data_folder = data_folder
@@ -20,6 +22,7 @@ class MPC:
         self.actual_demands = actual_demands
         self.ignore_n_hr = ignore_n_hr
         self.final_vol_constraint = final_vol_constraint
+        self.opt_params = opt_params
         self.step_size = step_size
         self.export_path = export_path
 
@@ -58,8 +61,14 @@ class MPC:
             return sum(self.cost_record)
 
     def optimize(self):
-        lp = LP(self.sim)
-        obj, status, x_fsp, x_vsp = lp.solve()
+        if self.opt_params['method'] == 'LP':
+            opt_model = LP(self.sim)
+        if self.opt_params['method'] == 'RO':
+            uset_type, omega, sigma = self.opt_params['set_type'], self.opt_params['omega'], self.opt_params['sigma']
+            unc_set = unc.construct_uset(self.sim, sigma)
+            opt_model = RO(self.sim, uset_type=uset_type, omega=omega, mapping_mat=unc_set.delta)
+
+        obj, status, x_fsp, x_vsp = opt_model.solve()
 
         tanks_volume = self.sim.get_all_tanks_vol(x_fsp, x_vsp)
         facilities_flows = self.sim.get_facilities_flows(x_fsp, x_vsp)
