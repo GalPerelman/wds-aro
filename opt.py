@@ -273,7 +273,7 @@ class ARO:
 
     def solve(self):
         self.model.solve(solver=grb, display=False)
-        if self.model.solution.status == 2:
+        try:
             obj, status = self.model.solution.objval, self.model.solution.status
             x_fsp_nominal = self.x_fsp(self.z.assign(np.zeros(self.z.shape)))
             if self.x_vsp.shape[0] > 0:
@@ -281,7 +281,7 @@ class ARO:
             else:
                 x_vsp_nominal = None
             return obj, status, x_fsp_nominal, x_vsp_nominal
-        else:
+        except AttributeError:
             return None, None, None, None
 
     def get_ldr_coefficients(self, export_path=''):
@@ -291,8 +291,13 @@ class ARO:
             the function return a dictionary as follow:
             {'x_fsp': {'pi0': pi0, 'pi': pi}, 'x_vsp': {'pi0': pi0, 'pi': pi}}
         """
-        pi0 = self.x_fsp.get()
-        pi = self.x_fsp.get(self.z)
+        try:
+            # catch error if model is infeasible
+            pi0 = self.x_fsp.get()
+            pi = self.x_fsp.get(self.z)
+        except RuntimeError:
+            return
+
         pi[np.isnan(pi)] = 0
         ldr = {'x_fsp': {'pi0': pi0, 'pi': pi}}
 
