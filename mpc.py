@@ -1,4 +1,7 @@
+import time
+
 import numpy as np
+import pandas as pd
 
 import utils
 from simulation import Simulation
@@ -31,7 +34,12 @@ class MPC:
         self.sim = self.init_sim()
 
     def init_sim(self):
-        return Simulation(self.data_folder, self.t1, self.t2)
+        sim = Simulation(self.data_folder, self.t1, self.t2)
+        if not self.final_vol_constraint:
+            for tank_idx, row in sim.net.tanks.iterrows():
+                sim.net.tanks.loc[tank_idx, 'final_vol'] = 0
+
+        return sim
 
     def run(self):
         for istep in range(self.n_steps):
@@ -69,7 +77,6 @@ class MPC:
             opt_model = RO(self.sim, uset_type=uset_type, omega=omega, mapping_mat=unc_set.delta)
 
         obj, status, x_fsp, x_vsp = opt_model.solve()
-
         tanks_volume = self.sim.get_all_tanks_vol(x_fsp, x_vsp)
         facilities_flows = self.sim.get_facilities_flows(x_fsp, x_vsp)
         self.results[self.t1] = {'objective': obj, 'status': status, 'x_fsp': x_fsp, 'x_vsp': x_vsp,
@@ -130,3 +137,10 @@ class MPC:
 
     def export_all_results(self):
         utils.write_pkl(self.results, self.export_path)
+
+    def get_implemented(self, param: str):
+        df = pd.DataFrame()
+        for t, results in self.results.items():
+            df = pd.concat([df, results[param].iloc[0]])
+
+        return df
