@@ -85,15 +85,25 @@ class RO:
                 if vsp_outflow_idx:
                     lhs -= (self.x_vsp[vsp_outflow_idx, :t + 1]).sum()
 
+                # old version - with no correlation matrix
                 # lhs = lhs - ((self.delta * self.z[tank_idx - 1, :t + 1] + 1) * tank_demand[:t + 1]).sum()
+
                 start_idx = (tank_idx - 1) * self.sim.T
                 lhs = lhs - ((zz[start_idx: start_idx + t + 1]) + tank_demand[:t + 1]).sum()
                 self.model.st((lhs >= min_vol_vector[t]).forall(self.uset))
                 self.model.st((lhs <= max_vol).forall(self.uset))
 
     def vsp_initial_flow(self):
+        hour_of_the_day = self.sim.t1 % 24
         for i, row in self.sim.net.vsp.iterrows():
             if np.isnan(row['init_flow']):
+                continue
+            elif hour_of_the_day in [7, 13, 17, 20]:
+                # In case that simulation start at time when tariff is change from previous hour
+                # The initial vsp flow can be changed according to the vsp_flow_change_policy
+                # usually simulation starts at time 0 but this modification is required for MPC (folding horizon runs)
+                # This is a temporary (not general) solution.
+                # The hours when tariff is changing should be extracted from the data
                 continue
             else:
                 self.model.st(self.x_vsp[i, 0] == row['init_flow'])
