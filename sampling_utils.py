@@ -5,7 +5,7 @@ import numpy as np
 import uncertainty_utils as unc
 
 
-def construct_demand_cov(sim):
+def construct_demand_cov(sim, sigma=False):
     """
     Hourly cov matrix for all simulation consumers
     The cov matrix shape is T * n_tanks where every T block is the cov of the i consumer
@@ -15,7 +15,10 @@ def construct_demand_cov(sim):
     Later when sample is draw the resulted cov is multiplied by nominal values
     """
     nominal_demands = sim.get_nominal_demands(flatten=False)
-    std_as_percentage = pd.read_csv(os.path.join(sim.data_folder, 'demands_std.csv'), index_col=0).iloc[:24].values
+    if sigma:
+        std_as_percentage = np.full((len(nominal_demands), 1), sigma)
+    else:
+        std_as_percentage = pd.read_csv(os.path.join(sim.data_folder, 'demands_std.csv'), index_col=0).iloc[:24].values
     unc_set = unc.Constructor(t=nominal_demands.shape[0], n=nominal_demands.shape[1], std=std_as_percentage,
                               corr_type='decline', temporal_rho=0.6, spatial_rho=0.8)
     cov = unc_set.cov
@@ -29,13 +32,13 @@ def construct_demand_cov(sim):
     return cov
 
 
-def construct_demand_cov_for_sample(sim, n=1):
+def construct_demand_cov_for_sample(sim, n=1, sigma=False):
     """
     Construct cov matrix for MPC optimization
     The basic cov matrix represent the hourly variance of each consumer
     The sample cov matrix is used to build sample for n days
     """
-    demand_cov = construct_demand_cov(sim)
+    demand_cov = construct_demand_cov(sim, sigma)
     m = demand_cov.shape[0]
     cov = np.zeros((demand_cov.shape[0] * n, demand_cov.shape[0] * n))
 
