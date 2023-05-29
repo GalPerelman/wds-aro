@@ -131,7 +131,7 @@ def decline_correlation_mat(size, rho):
 
 def construct_uset(sim, sigma):
     nominal_demands = sim.get_nominal_demands(flatten=False)
-    std_as_percentage = np.full((24, 1), sigma)
+    std_as_percentage = np.full((len(nominal_demands), 1), sigma)
     std = nominal_demands * std_as_percentage
     unc_set = Constructor(t=nominal_demands.shape[0], n=nominal_demands.shape[1], std=std,
                               corr_type='decline', temporal_rho=0.6, spatial_rho=0.8)
