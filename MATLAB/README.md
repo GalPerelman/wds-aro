@@ -1,8 +1,8 @@
 # wds-aro
 Adjustable Robust Optimal Operation of Water Distribution Systems
 
-This is a MATLAB version of the ARO-WDS
-It is not completed and several problems were obtained
+This is a MATLAB version of the ARO-WDS.<br>
+It is not completed and several problems were obtained.<br>
 Use on your own responsibility
 
 RSOME ([Chen, Sim, and Xiong. 2020](https://pubsonline.informs.org/doi/abs/10.1287/mnsc.2020.3603)) is a matlab toolkit for Robust Optimization<br>
