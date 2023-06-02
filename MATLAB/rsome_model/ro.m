@@ -110,7 +110,6 @@ function [obj_val, x_fsp_val, x_vsp_val, model] = ro(sim, uset_type, omega, delt
         if sim.net.vsp{i, "const_flow"} == 1
             for j = 1:1:max(const_tariffs)
                 idx = find(const_tariffs == j);
-                idx = idx(1:end-1);
                 mat = utils.get_mat_for_value_canges(sim.T, idx);
                 model.append(mat * x_vsp(i, :)' == 0);
             end

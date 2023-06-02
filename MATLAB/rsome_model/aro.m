@@ -1,4 +1,4 @@
-function [obj_val, x_fsp_val, x_vsp_val, z_val, model, x_fsp, z] = ro(sim, uset_type, omega, delta)
+function [obj_val, x_fsp_val, x_vsp_val, z_val, model, x_fsp, z] = aro(sim, uset_type, omega, delta)
     model = rsome();
     model.Param.solver = 'gurobi';
     model.Param.display = 0;
@@ -25,8 +25,6 @@ function [obj_val, x_fsp_val, x_vsp_val, z_val, model, x_fsp, z] = ro(sim, uset_
     z = model.random(1, n_tanks * sim.T);
     % declare uncertainty set
     u = model.ambiguity;
-    r = [-0.01, 0.05, 0.1, 0.12, 0.01, -0.08, -0.11, -0.002, 0.06, 0.01, 0.09, 0.18, 0.1, -0.1...
-        -0.12, -0.05, 0, 0.14, 0.09, 0.03, 0, 0.02, 0.08, 0.16];
     u.suppset(norm(z, uset_type) <= omega);
     model.with(u);
 
@@ -42,7 +40,7 @@ function [obj_val, x_fsp_val, x_vsp_val, z_val, model, x_fsp, z] = ro(sim, uset_
             x_vsp(:, t).affadapt(z(1:t-1));
         end
     end
-
+    
     % Objective function
     % vsp have no costs - can be added in the future
     obj_func = sum((sim.net.fsp{:, "power"}' * x_fsp(:, :))' .* sim.data{:, "tariff"});
@@ -125,7 +123,6 @@ function [obj_val, x_fsp_val, x_vsp_val, z_val, model, x_fsp, z] = ro(sim, uset_
         if sim.net.vsp{i, "const_flow"} == 1
             for j = 1:1:max(const_tariffs)
                 idx = find(const_tariffs == j);
-                idx = idx(1:end-1);
                 mat = utils.get_mat_for_value_canges(sim.T, idx);
                 model.append(mat * x_vsp(i, :)' == 0);
             end
