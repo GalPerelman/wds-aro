@@ -148,12 +148,13 @@ class RO:
 
 
 class ARO:
-    def __init__(self, sim, uset_type, omega, mapping_mat, worst_case=False):
+    def __init__(self, sim, uset_type, omega, mapping_mat, worst_case=False, latency=0):
         self.sim = sim
         self.uset_type = uset_type
         self.omega = omega              # omega = robustness, size of uncertainty set
         self.mapping_mat = mapping_mat
         self.worst_case = worst_case    # return worst_case or nominal objective value
+        self.latency = latency
 
         self.model = ro.Model()
         self.z, self.uset, self.nominal_uset = self.declare_rand_variables()
@@ -177,14 +178,14 @@ class ARO:
 
     def declare_decision_variables(self):
         x_fsp = self.model.ldr((len(self.sim.net.fsp), self.sim.T))
-        for t in range(1, self.sim.T):
-            x_fsp[:, t].adapt(self.z[:, :t])  # adaptation of the decision rule
+        for t in range(self.latency+1, self.sim.T):
+            x_fsp[:, t].adapt(self.z[:, :t-self.latency])  # adaptation of the decision rule
         self.model.st((0 <= x_fsp).forall(self.uset))
         self.model.st((x_fsp <= 1).forall(self.uset))
 
         x_vsp = self.model.ldr((len(self.sim.net.vsp), self.sim.T))
-        for t in range(1, self.sim.T):
-            x_vsp[:, t].adapt(self.z[:, :t])  # adaptation of the decision rule
+        for t in range(self.latency+1, self.sim.T):
+            x_vsp[:, t].adapt(self.z[:, :t-self.latency])  # adaptation of the decision rule
         for i, row in self.sim.net.vsp.iterrows():
             self.model.st((x_vsp[i, :] >= row['min_flow']).forall(self.uset))
             self.model.st((x_vsp[i, :] <= row['max_flow']).forall(self.uset))
