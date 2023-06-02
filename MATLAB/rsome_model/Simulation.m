@@ -129,6 +129,16 @@ classdef Simulation
                 flow = faility_flows' * x(facility_idx, :);
         end
 
+        function cost = get_total_cost(obj, x)
+            cost = 0;
+                for i = 1:1:height(obj.net.fsp.facility)
+                    power = obj.net.fsp{i, "power"} .* x(i,:)';
+                    tariff = obj.data{:, "tariff"};
+                    cost = cost + sum(tariff .* power);
+                end
+
+        end
+
     end
 end
 
