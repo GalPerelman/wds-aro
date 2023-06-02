@@ -2,6 +2,7 @@ classdef utils
     methods(Static)
 
         function mat = get_mat_for_value_canges(n, valid_idx)
+            valid_idx = valid_idx(2:end);
             mat = eye(n);
             [rows, cols] = meshgrid(1:n-1, 1:n-1); 
             rows_vals = diag(rows) + 1;
@@ -21,6 +22,13 @@ classdef utils
             const_idx = cumsum(const_idx) + 1;
         end
         
+        function x = extract_ldr_solution(ldr)
+            % sample dimensions needs to be N+1 compare to the random var
+            sz = size(ldr.LDRAffineMap,2) - 1;
+            z = randn(sz,1);
+            x = ldr.insert(z);
+            x = reshape(x, ldr.Size(1), []);
+        end
     end
 end
 
