@@ -47,6 +47,13 @@ def eigsorted(cov):
 
 
 def plot_confidence_ellipsoids(x, y, ax=None):
+    """
+    theory: https://www.visiondummy.com/2014/04/draw-error-ellipse-representing-covariance-matrix
+    plot:   https://stackoverflow.com/a/20127387
+            https://matplotlib.org/stable/gallery/statistics/confidence_ellipse.html
+            https://carstenschelp.github.io/2018/09/14/Plot_Confidence_Ellipse_001.html
+            
+    """
     if ax is None:
         fig, ax = plt.subplots()
 
@@ -54,7 +61,7 @@ def plot_confidence_ellipsoids(x, y, ax=None):
     vals, vecs = eigsorted(cov)
     theta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
 
-    for i in [1, 2, 3, 4, 5, 6]:
+    for i in [1, 2, 3, 4, 5, 6, 7, 8]:
         w, h = 2 * i * np.sqrt(vals)
         ell = Ellipse(xy=(np.mean(x), np.mean(y)), width=w, height=h, angle=theta, color='grey', lw=0.5)
         ell.set_facecolor('none')
@@ -93,9 +100,10 @@ def scatter_residuals(x, y, axes_lim=False, ax=None):
     return ax
 
 
-def plot_residuals(residuals, t):
-    fig, axes = plt.subplots(nrows=t, ncols=t, figsize=(8, 6))
-    min_lim, max_lim = np.quantile(residuals, 0.01) * 0.85, np.quantile(residuals, 0.99) * 1.15
+def plot_residuals(residuals, t, export_path=''):
+    fig, axes = plt.subplots(nrows=t, ncols=t, figsize=(10, 8))
+    # min_lim, max_lim = np.quantile(residuals, 0.01) * 0.7, np.quantile(residuals, 0.99) * 1.3
+    min_lim, max_lim = residuals.min().min() * 1.2, residuals.max().max() * 0.5
     for i in range(t):
         for j in range(t):
             if i != j:
@@ -112,18 +120,21 @@ def plot_residuals(residuals, t):
             axes[i, j].set_yticklabels([])
 
     for i, ax in enumerate(axes[0, :]):
-        ax.set_title(f'Time {i}', fontsize=10)
+        ax.set_title(f'Time {i}', fontsize=11)
 
     for i, ax in enumerate(axes[:, 0]):
-        ax.set_ylabel(f'Time {i}', fontsize=10)
+        ax.set_ylabel(f'Time {i}', fontsize=11)
 
-    plt.subplots_adjust(left=0.08, right=0.95, bottom=0.08, top=0.95, wspace=0.06, hspace=0.1)
+    plt.subplots_adjust(left=0.1, right=0.95, bottom=0.08, top=0.95, wspace=0.15, hspace=0.15)
+    if export_path:
+        plt.savefig(export_path)
+
+    plt.show()
 
 
 if __name__ == "__main__":
     data_path = 'observed_demands.csv'
     pivoted_df, residuals = load_data(data_path)
-    plot_residuals(residuals, t=6)
+    plot_residuals(residuals, t=6, export_path='residuals.png')
     plot_daily_pattern(pivoted_df)
-
     plt.show()
