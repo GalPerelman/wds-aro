@@ -6,7 +6,7 @@ from matplotlib import ticker as mtick
 from typing import Iterable
 import simulation
 
-
+COLORS_BLUES = ["#00a6fb", "#0582ca", "#006494", "#003554", "#051923"]
 COLORS = ["#4eafd0", "#1b839d", "#02344f", "#ffb703", "#fb8500"]
 MARKERS = ["o", "^", "s", "d", "h"]
 
@@ -140,7 +140,7 @@ def latency_analysis(path: str):
 
     fig, ax = plt.subplots()
     for i, sigma in enumerate(df.columns):
-        ax.plot(df.index, df[sigma], c=COLORS[i], marker=MARKERS[i], mfc='white', label=f'$\sigma={sigma}$')
+        ax.plot(df.index, df[sigma], c=COLORS[i], marker=MARKERS[i], mfc='white', label=f'$\sigma={sigma*100:.0f}$%')
 
     ax.yaxis.set_major_formatter(mtick.StrMethodFormatter('{x:,.0f}'))
     ax.xaxis.set_major_formatter(mtick.FormatStrFormatter('%.0f'))
