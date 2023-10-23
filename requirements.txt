@@ -14,7 +14,6 @@ pyparsing==3.0.9
 python-dateutil==2.8.2
 pytz==2023.3
 PyUtilib==6.0.0
-romodel==0.0.2
 rsome==1.1.4
 scipy==1.10.1
 six==1.16.0
